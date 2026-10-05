@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Humanizer</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e2e0da;
+    --accent: #2f5d50; --accent-ink: #ffffff; --good: #2e7d4f; --warn: #b7791f; --bad: #b3412f;
+    --bar: #ecebe6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9a9890; --line: #33322f;
+      --accent: #7fb8a4; --accent-ink: #10201b; --good: #6fcf97; --warn: #e0b35a; --bad: #f08a76;
+      --bar: #2a2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+           padding: 14px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  .status { font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  main { padding: 18px 24px 32px; max-width: 1400px; margin: 0 auto; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  label { font-size: 13px; color: var(--muted); }
+  select, button { font: inherit; border-radius: 8px; border: 1px solid var(--line);
+                   background: var(--panel); color: var(--ink); padding: 7px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 8px 18px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } main, header { padding-left: 16px; padding-right: 16px; } }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-width: 0; }
+  .pane-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
+               border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); gap: 8px; flex-wrap: wrap; }
+  .pane-head strong { color: var(--ink); font-size: 14px; }
+  textarea { width: 100%; min-height: 420px; resize: vertical; border: 0; padding: 14px; background: transparent;
+             color: var(--ink); font: 15px/1.6 Georgia, "Times New Roman", serif; outline: none; }
+  .tools { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tools button { padding: 4px 9px; font-size: 13px; }
+  .progress { height: 4px; background: var(--bar); border-radius: 2px; overflow: hidden; margin: 2px 0 12px; visibility: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  #msg { font-size: 13px; color: var(--muted); min-height: 20px; }
+  .scores { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: none; }
+  .scores h2 { font-size: 14px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 500; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td.num { font-variant-numeric: tabular-nums; width: 22%; }
+  .meter { display: inline-block; width: 70px; height: 6px; background: var(--bar); border-radius: 3px; margin-left: 8px; vertical-align: middle; overflow: hidden; }
+  .meter > i { display: block; height: 100%; }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 1px 7px; margin-left: 6px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Humanizer</h1>
+  <div class="status" id="status">Checking…</div>
+</header>
+<main>
+  <div class="controls">
+    <label>Mode
+      <select id="mode">
+        <option value="quick">Quick (rules only, instant)</option>
+        <option value="balanced" selected>Balanced (AI rewrite, ~1–2 min / 500 words)</option>
+        <option value="thorough">Thorough (more attempts, ~8–12 min / 500 words)</option>
+        <option value="max">Max (slowest, steers on every detector)</option>
+      </select>
+    </label>
+    <label>Tone
+      <select id="tone">
+        <option value="standard">Standard</option>
+        <option value="casual">Casual</option>
+        <option value="academic">Academic</option>
+      </select>
+    </label>
+    <label>Chat model <select id="model"></select></label>
+    <label>Base model <select id="base"></select></label>
+    <button class="primary" id="go">Humanize →</button>
+    <button id="stop" style="display:none">Cancel</button>
+  </div>
+  <div class="progress" id="prog"><div></div></div>
+  <div id="msg"></div>
+
+  <div class="grid">
+    <section class="pane">
+      <div class="pane-head"><strong>Input</strong><span id="incount">0 words</span>
+        <div class="tools"><button id="clear">Clear</button><button id="checkIn">Check AI score</button></div>
+      </div>
+      <textarea id="input" placeholder="Paste the text you want to humanize…"></textarea>
+    </section>
+    <section class="pane">
+      <div class="pane-head"><strong>Output</strong><span id="outcount">0 words</span>
+        <div class="tools">
+          <button id="copy">Copy</button>
+          <button id="docx">Save .docx</button>
+          <button id="txt">Save .txt</button>
+          <button id="checkOut">Re-check</button>
+        </div>
+      </div>
+      <textarea id="output" placeholder="Humanized text appears here. You can edit it before saving."></textarea>
+    </section>
+  </div>
+
+  <div class="scores" id="scores">
+    <h2>AI-detection scores <span class="tag">0% = human · 100% = AI</span></h2>
+    <table><thead><tr><th>Detector</th><th>Input</th><th>Output</th></tr></thead><tbody id="rows"></tbody></table>
+    <div class="note" id="sim"></div>
+    <div class="note" id="notes"></div>
+    <div class="note">These are local open-source detectors. Commercial ones (GPTZero, Turnitin, etc.) use different models, so results there can differ. Detectors marked “held out” are never used to steer the rewrite, so they’re the fairest check.</div>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let detInfo = [], job = null, lastBefore = null, judges = null;
+
+const words = t => (t.trim().match(/\S+/g) || []).length;
+const upd = () => { $("incount").textContent = words($("input").value) + " words";
+                    $("outcount").textContent = words($("output").value) + " words"; };
+$("input").addEventListener("input", upd); $("output").addEventListener("input", upd);
+
+function color(p) { return p < 0.35 ? "var(--good)" : p < 0.65 ? "var(--warn)" : "var(--bad)"; }
+function cell(p) {
+  if (p == null) return "<td class='num'>–</td>";
+  const pct = Math.round(p * 100);
+  return `<td class="num" style="color:${color(p)}">${pct}%<span class="meter"><i style="width:${pct}%;background:${color(p)}"></i></span></td>`;
+}
+function showScores(before, after, sim) {
+  if (before) lastBefore = before;
+  $("rows").innerHTML = detInfo.map(d =>
+    `<tr><td>${d.label}${(judges ? judges.includes(d.name) : d.judge) ? '<span class="tag">held out</span>' : ''}</td>${cell((before || lastBefore || {})[d.name])}${cell((after || {})[d.name])}</tr>`).join("");
+  $("sim").textContent = sim != null ? `Meaning similarity to input: ${Math.round(sim * 100)}% (embedding cosine; 85%+ means the meaning is closely preserved)` : "";
+  $("scores").style.display = "block";
+}
+
+async function status() {
+  const s = await (await fetch("/api/status")).json();
+  detInfo = s.detectors;
+  const ok = s.ollama;
+  $("status").innerHTML =
+    `<span><span class="dot" style="background:${ok ? 'var(--good)' : 'var(--bad)'}"></span>AI rewriter: ${ok ? 'ready' : 'Ollama not running (rules-only mode)'}</span>` +
+    `<span><span class="dot" style="background:${detInfo.length ? 'var(--good)' : 'var(--warn)'}"></span>${detInfo.length} detectors</span>`;
+  const chat = s.models.filter(m => !m.includes("-text")), base = s.models.filter(m => m.includes("-text"));
+  const opts = (list, def) => (list.length ? list : ["(none)"]).map(m => `<option ${m === def ? "selected" : ""}>${m}</option>`).join("");
+  $("model").innerHTML = opts(chat, s.default_model);
+  $("base").innerHTML = opts(base, s.default_base_model);
+  if (!ok) $("mode").value = "quick";
+}
+
+async function check(which) {
+  const text = $(which).value.trim(); if (!text) return;
+  $("msg").textContent = "Scoring…";
+  const r = await (await fetch("/api/detect", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({text})})).json();
+  $("msg").textContent = "";
+  which === "input" ? showScores(r.scores, null, null) : showScores(null, r.scores, null);
+}
+
+$("go").onclick = async () => {
+  const text = $("input").value.trim(); if (!text) return;
+  $("go").disabled = true; $("stop").style.display = ""; $("prog").style.visibility = "visible";
+  $("prog").firstElementChild.style.width = "2%";
+  const r = await (await fetch("/api/humanize", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({text, mode: $("mode").value, tone: $("tone").value, model: $("model").value, base_model: $("base").value})})).json();
+  job = r.job; poll();
+};
+$("stop").onclick = () => job && fetch(`/api/job/${job}/cancel`, {method: "POST"});
+
+async function poll() {
+  const j = await (await fetch(`/api/job/${job}`)).json();
+  $("msg").textContent = j.message || "";
+  $("prog").firstElementChild.style.width = Math.max(2, Math.round((j.progress || 0) * 100)) + "%";
+  if (j.status === "running") return setTimeout(poll, 800);
+  $("go").disabled = false; $("stop").style.display = "none"; $("prog").style.visibility = "hidden";
+  if (j.status === "done") {
+    $("output").value = j.output; upd();
+    $("msg").textContent = `Done in ${j.seconds}s${j.used_ai ? "" : " (rules only)"}.`;
+    $("notes").textContent = (j.notes && j.notes.length) ? "Structure changes: " + j.notes.join(" · ") : "";
+    if (j.report) { judges = j.report.judges; showScores(j.report.before, j.report.after, j.report.similarity); }
+  } else $("msg").textContent = "Error: " + j.message;
+}
+
+async function save(format) {
+  const text = $("output").value; if (!text.trim()) return;
+  const r = await fetch("/api/export", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({text, format})});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob());
+  a.download = "humanized." + format; a.click();
+}
+$("docx").onclick = () => save("docx"); $("txt").onclick = () => save("txt");
+$("copy").onclick = () => { navigator.clipboard.writeText($("output").value); $("msg").textContent = "Copied."; };
+$("clear").onclick = () => { $("input").value = ""; upd(); };
+$("checkIn").onclick = () => check("input"); $("checkOut").onclick = () => check("output");
+status();
+</script>
+</body>
+</html>

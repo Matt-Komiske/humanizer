@@ -1,0 +1,5 @@
+{
+  "_comment": "Models used by the humanizer. Change these to use bigger models on a stronger computer; see README 'Bigger models'. Run the start script again afterwards and it downloads anything missing.",
+  "chat_model": "llama3.1:8b",
+  "base_model": "llama3.1:8b-text-q4_K_M"
+}

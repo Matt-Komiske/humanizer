@@ -1,0 +1,18 @@
+{
+ "desklib": {
+  "auroc": 1.0,
+  "fpr@0.5": 0.2,
+  "tpr@0.5": 1.0
+ },
+ "superannotate": {
+  "auroc": 0.963,
+  "fpr@0.5": 0.125,
+  "tpr@0.5": 1.0
+ },
+ "binoculars": {
+  "auroc": 0.906,
+  "threshold": 0.8825,
+  "fpr": 0.025,
+  "tpr": 0.667
+ }
+}
